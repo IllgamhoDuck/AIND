@@ -220,7 +220,7 @@ class AirCargoProblem(Problem):
         kb.tell(decode_state(node.state, self.state_map).pos_sentence())
         count = 0
         for clause in self.goal:
-            if clause not in kb.clause:
+            if clause not in kb.clauses:
                 count += 1
         return count
 

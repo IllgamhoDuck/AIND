@@ -104,6 +104,38 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-
+        
         # TODO implement model selection using CV
-        raise NotImplementedError
+        
+        split_method = KFold()
+
+        best_model = None
+        lowest_likelihood = float("Inf")
+        
+        for state_num in range(self.min_n_components, self.max_n_components + 1):
+            
+            try:                
+                log_likelihoods = []
+                
+                for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                    self.X, self.lengths = combine_sequences(cv_train_idx, self.sequences)
+                    test_X, test_lengths = combine_sequences(cv_test_idx, self.sequences)
+                    model = self.base_model(state_num)
+                    log_likelihoods.append(model.score(test_X, test_lengths))
+            
+                avg_log_likelihood = np.mean(log_likelihoods)
+                print("This word is {} and number of state is {} with average log likelihood {}". \
+                      format(self.this_word, state_num, avg_log_likelihood))
+            
+                # The lower the average log likelikhood is the better the model is
+                if avg_log_likelihood < lowest_likelihood:
+                    lowest_likelihood = avg_log_likelihood
+                    best_model = model
+            
+            except:
+                pass
+        
+        return best_model
+            
+        
+        

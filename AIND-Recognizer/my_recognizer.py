@@ -22,4 +22,29 @@ def recognize(models: dict, test_set: SinglesData):
     guesses = []
     # TODO implement the recognizer
     # return probabilities, guesses
-    raise NotImplementedError
+
+    for i in test_set.get_all_Xlengths().keys():
+        i_X, i_lengths = test_set.get_all_Xlengths()[i]
+        
+        best_word = None
+        best_prob = float("-Inf")
+        probability_dict = {}
+        
+        for word, GaussianHMM in models.items():
+            try:
+                word_logL = GaussianHMM.score(i_X, i_lengths)
+                probability_dict[word] = word_logL
+            
+                if word_logL > best_prob:
+                    best_prob = word_logL
+                    best_word = word
+            except:
+                probability_dict[word] = float("-Inf")
+                continue
+                
+        probabilities.append(probability_dict)
+        guesses.append(best_word)
+        
+    return probabilities, guesses
+        
+        

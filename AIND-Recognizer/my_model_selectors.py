@@ -77,6 +77,10 @@ class SelectorBIC(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
         # TODO implement model selection based on BIC scores
+        
+        best_model = None
+        lowest_score = float("Inf")
+        
         for state_num in range(self.min_n_components, self.max_n_components + 1):
             
             try:
@@ -84,6 +88,31 @@ class SelectorBIC(ModelSelector):
                 # L is likelihood of the fitted model
                 # p is number of parameter
                 # N is number of datapoint
+                
+                model = self.base_model(state_num)
+                logL = model.score(self.X, self.lengths)
+                
+                datapoint_num = sum(self.lengths)
+                logN = np.log(datapoint_num)
+                
+                # Number of parameter
+                # Initial state occupation probabilities - number of states - 1
+                # Transition matrix - (number of states) * (number of states - 1)
+                # Emission matrix - 2 * number of states * number of features 
+                # Initial state occupation probabilities + transition matrix + emission matrix
+                # (number of states) ** 2 + 2 * (number of state) * (number of features) - 1
+                p = state_num ** 2 + 2 * state_num * model.n_features - 1
+                
+                bic_score = -2 * logL + p * logN
+                
+                if bic_score < lowest_score:
+                    lowest_score = bic_score
+                    best_model = model
+                
+            except:
+                pass
+        
+        return best_model
 
 
 class SelectorDIC(ModelSelector):
@@ -100,7 +129,42 @@ class SelectorDIC(ModelSelector):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
         # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        
+        best_model = None
+        most_discriminative_score = float("-Inf")
+        
+        for state_num in range(self.min_n_components, self.max_n_components + 1):
+            
+            try:
+                model = self.base_model(state_num)
+
+                # List for SUM(log(P(X(all but i))
+                logP_X_not_i = []
+
+                # Anti words
+                anti_words = list(self.hwords.keys())
+                anti_words.remove(self.this_word)
+
+                for anti_word in anti_words:
+                    anti_X, anti_lengths = self.hwords[anti_word]
+                    logP_X_not_i.append(model.score(anti_X, anti_lengths))
+                
+                # log(P(X(i))
+                logP_X_i = model.score(self.X, self.lengths)
+                # 1/(M-1)SUM(log(P(X(all but i))
+                anti_mean_prob = np.mean(logP_X_not_i)
+                
+                dic_score = logP_X_i - anti_mean_prob
+                # print(dic_score)
+                
+                if dic_score > most_discriminative_score:
+                    most_discriminative_score = dic_score
+                    best_model = model
+                
+            except:
+                pass
+        
+        return best_model
 
 
 class SelectorCV(ModelSelector):
@@ -113,7 +177,7 @@ class SelectorCV(ModelSelector):
         
         # TODO implement model selection using CV
         
-        split_method = KFold()
+        split_method = KFold(n_splits = 2)
 
         best_model = None
         lowest_likelihood = float("Inf")
@@ -130,8 +194,9 @@ class SelectorCV(ModelSelector):
                     log_likelihoods.append(model.score(test_X, test_lengths))
             
                 avg_log_likelihood = np.mean(log_likelihoods)
-                print("This word is {} and number of state is {} with average log likelihood {}". \
-                      format(self.this_word, state_num, avg_log_likelihood))
+
+                # print("This word is {} and number of state is {} with average log likelihood {}". \
+                #     format(self.this_word, state_num, avg_log_likelihood))
             
                 # The lower the average log likelikhood is the better the model is
                 if avg_log_likelihood < lowest_likelihood:
